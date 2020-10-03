@@ -3,7 +3,7 @@ module AOBench
 
 export Vect, main
 
-using LinearAlgebra, UnPack, Setfield
+using LinearAlgebra, UnPack, Setfield, MuladdMacro
 using Base.Cartesian
 
 struct Vect{T} <: AbstractVector{T}
@@ -49,8 +49,8 @@ struct State{T,V}
     nao_samples::Int
 end
 
-LinearAlgebra.dot(v0::Vect, v1::Vect) = v0.x * v1.x + v0.y * v1.y + v0.z * v1.z
-LinearAlgebra.cross(v0::Vect, v1::Vect) = Vect(
+@muladd LinearAlgebra.dot(v0::Vect, v1::Vect) = v0.x * v1.x + v0.y * v1.y + v0.z * v1.z
+@muladd LinearAlgebra.cross(v0::Vect, v1::Vect) = Vect(
     v0.y * v1.z - v0.z * v1.y,
     v0.z * v1.x - v0.x * v1.z,
     v0.x * v1.y - v0.y * v1.x,
@@ -64,10 +64,12 @@ for op in [:+, :-, :*, :/]
         @eval Base.$op(s::Number, v0::Vect) = Vect(@ntuple 3 i -> $op(s, v0[i]))
     end
 end
+Base.:(-)(v::Vect{T}) where T = Vect(@ntuple 3 i -> -v[i])
+Base.muladd(v1::Vect, v2::Vect, v3::Vect) = Vect(@ntuple 3 i -> muladd(v1[i], v2[i], v3[i]))
 Base.zero(::Type{Vect{T}}) where T = Vect(@ntuple 3 _->zero(T))
 Base.zero(::T) where {T<:Vect} = zero(T)
 
-@fastmath function ray_intersect(isect::Intersect, ray::Ray, sphere::Sphere)
+@fastmath @muladd function ray_intersect(isect::Intersect, ray::Ray, sphere::Sphere)
     rs = ray.org - sphere.center
     B = rs'ray.dir
     C = rs'rs - sphere.radius^2
@@ -85,7 +87,7 @@ Base.zero(::T) where {T<:Vect} = zero(T)
     return isect
 end
 
-function ray_intersect(isect::Intersect, ray::Ray, plane::Plane)
+@muladd function ray_intersect(isect::Intersect, ray::Ray, plane::Plane)
     d = -plane.p'plane.n
     v = ray.dir'plane.n
 
@@ -120,7 +122,7 @@ function orthobasis(n::Vect)
     return b0, b1, b2
 end
 
-@fastmath function ambient_occlusion(isect::Intersect{T,V}, scene::State) where {T,V}
+@fastmath @muladd function ambient_occlusion(isect::Intersect{T,V}, scene::State) where {T,V}
     @unpack nao_samples = scene
     ntheta = nao_samples
     nphi   = nao_samples
