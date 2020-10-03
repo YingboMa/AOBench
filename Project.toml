@@ -4,6 +4,9 @@ authors = ["Yingbo Ma <mayingbo5@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 LabelledArrays = "2ee39098-c373-598a-b85f-a56591580800"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MuladdMacro = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"

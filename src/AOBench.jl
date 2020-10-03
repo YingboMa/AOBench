@@ -3,7 +3,7 @@ module AOBench
 
 export Vect, main
 
-using LinearAlgebra, UnPack, Setfield, MuladdMacro
+using LinearAlgebra, UnPack, Setfield, MuladdMacro, Images, FileIO
 using Base.Cartesian
 
 struct Vect{T} <: AbstractVector{T}
@@ -152,11 +152,9 @@ end
     return occlusion
 end
 
-myclamp(f) = UInt8(floor(Int, clamp(f * 255.5, 0, 255)))
-
-function render!(img, w::Int, h::Int, nsubsamples::Int, scene::State)
-    fimg = zeros(3, w, h)
+function render!(img, h::Int, w::Int, nsubsamples::Int, scene::State)
     ss = inv(nsubsamples^2)
+    fill!(img, 0)
 
     for y in 0:h-1, x in 0:w-1
         for v in 0:nsubsamples-1, u in 0:nsubsamples-1
@@ -172,30 +170,39 @@ function render!(img, w::Int, h::Int, nsubsamples::Int, scene::State)
 
             if !iszero(isect.hit)
                 col = ambient_occlusion(isect, scene)
-                @nexprs 3 i -> fimg[i, x+1, y+1] += col
+                img[y+1, x+1] += Gray(col)
             end
         end
 
-        @nexprs 3 i -> fimg[i, x+1, y+1] *= ss
-        @nexprs 3 i -> img[i, x+1, y+1] = myclamp(fimg[i, x+1, y+1])
+        img[y+1, x+1] *= ss
     end
     return img
 end
 
-function init_scene()
+function init_scene(;width=256, height=256, nsubsamples=2, nao_samples=8)
     spheres = (
                Sphere(Vect(-2.0, 0.0, -3.5), 0.5),
                Sphere(Vect(-0.5, 0.0, -3.0), 0.5),
                Sphere(Vect(1.0, 0.0, -2.2), 0.5),
               )
     plane = Plane(Vect(0.0, -0.5, 0.0), Vect(0.0, 1.0, 0.0))
-    width       = 256
-    height      = 256
-    nsubsamples = 2
-    nao_samples = 8
     return State(spheres, plane, width, height, nsubsamples, nao_samples)
 end
 
+function main(;width=256, height=256, nsubsamples=2, nao_samples=8)
+    scene = init_scene(;
+                        width=width,
+                        height=height,
+                        nsubsamples=nsubsamples,
+                        nao_samples=nao_samples,
+                      )
+    img = Array{RGB{Float64}}(undef, scene.height, scene.width)
+    render!(img, scene.height, scene.width, scene.nsubsamples, scene)
+    save(File(format"PNG", "ao.png"), img)
+    return img
+end
+
+#=
 function saveppm(fname::String, w::Int, h::Int, img::Array{UInt8,3})
     open(fname, "w+") do f
         println(f, "P6")
@@ -205,15 +212,6 @@ function saveppm(fname::String, w::Int, h::Int, img::Array{UInt8,3})
     end
     return fname
 end
-
-function main()
-    scene = init_scene()
-    @unpack width, height, nsubsamples = scene
-    scene.width, scene.height
-    img = Array{UInt8}(undef, 3, width, height)
-    render!(img, width, height, nsubsamples, scene)
-    saveppm("ao.ppm", width, height, img)
-    return 0
-end
+=#
 
 end # module
